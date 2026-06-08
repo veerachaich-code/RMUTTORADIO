@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RMUTTO RADIO</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      body { font-family: 'Prompt', sans-serif; background-color: #0f172a; color: #f8fafc; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding-top: 20px; padding-bottom: 40px; margin: 0; }
+      #welcome-popup { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); z-index: 9999; display: flex; justify-content: center; align-items: center; padding: 20px; }
+      .popup-card { background: #1e293b; padding: 40px 20px; border-radius: 24px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.6); width: 100%; max-width: 350px; animation: popIn 0.5s ease-out forwards; }
+      @keyframes popIn { 0% { opacity: 0; transform: scale(0.9); } 100% { opacity: 1; transform: scale(1); } }
+      .radio-icon { font-size: 4rem; margin-bottom: 10px; }
+      .app-header { text-align: center; margin-bottom: 30px; width: 100%; max-width: 400px; }
+      .app-title { font-size: 1.5rem; font-weight: 700; background: linear-gradient(to right, #2dd4bf, #0ea5e9); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 5px; }
+      .app-subtitle { font-size: 0.8rem; color: #94a3b8; font-weight: 300; }
+      #main-content { display: none; flex-direction: column; align-items: center; width: 100%; animation: fadeIn 0.8s ease-in; }
+      @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+      .player-card { width: 100%; max-width: 400px; background: #1e293b; border-radius: 24px; padding: 25px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4); margin-bottom: 25px; position: relative; overflow: hidden; }
+      .album-art-container { width: 100%; aspect-ratio: 1 / 1; border-radius: 16px; overflow: hidden; margin-bottom: 20px; box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3); position: relative; background-color: #000; }
+      .status-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 5; transition: opacity 0.4s; }
+      .bg-standby { background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.95)); }
+      .bg-announce { background: linear-gradient(135deg, rgba(245, 124, 0, 0.95), rgba(230, 81, 0, 0.95)); }
+      .bg-offair { background: rgba(15, 23, 42, 0.98); backdrop-filter: grayscale(100%); }
+      .song-info { text-align: center; margin-bottom: 15px; position: relative; z-index: 3; }
+      .song-status-badge { display: inline-block; padding: 5px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; margin-bottom: 10px; letter-spacing: 0.5px; }
+      .badge-live { background-color: rgba(45, 212, 191, 0.2); color: #2dd4bf; }
+      .badge-off { background-color: rgba(244, 63, 94, 0.2); color: #f43f5e; }
+      .badge-warn { background-color: rgba(251, 191, 36, 0.2); color: #fbbf24; }
+      .visualizer { display: flex; align-items: flex-end; justify-content: center; gap: 4px; height: 30px; margin: 15px 0; }
+      .bar { width: 4px; background-color: #2dd4bf; border-radius: 2px; animation: sound 0ms -800ms linear infinite alternate; }
+      .visualizer .bar:nth-child(1) { height: 10px; animation-duration: 474ms; }
+      .visualizer .bar:nth-child(2) { height: 20px; animation-duration: 433ms; }
+      .visualizer .bar:nth-child(3) { height: 30px; animation-duration: 407ms; }
+      .visualizer .bar:nth-child(4) { height: 15px; animation-duration: 458ms; }
+      .visualizer .bar:nth-child(5) { height: 25px; animation-duration: 400ms; }
+      @keyframes sound { 0% { height: 5px; opacity: 0.5; } 100% { height: 30px; opacity: 1; box-shadow: 0 0 10px #2dd4bf; } }
+      .click-blocker { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 4; background: transparent; }
+      .request-section { width: 100%; max-width: 400px; background: #1e293b; border-radius: 24px; padding: 25px; }
+      .request-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 15px; color: #cbd5e1; }
+      .custom-input { background-color: #0f172a; border: 1px solid #334155; color: #f8fafc; border-radius: 12px; padding: 12px 15px; font-size: 0.9rem; text-align: left; }
+      .custom-input:focus { border-color: #2dd4bf; box-shadow: 0 0 0 0.2rem rgba(45, 212, 191, 0.15); }
+      .custom-input::placeholder { color: #64748b; }
+      .btn-play { background: linear-gradient(135deg, #2dd4bf, #0ea5e9); color: #0f172a; border-radius: 50px; font-weight: 700; padding: 15px 30px; border: none; box-shadow: 0 4px 15px rgba(45, 212, 191, 0.4); width: 100%; font-size: 1.2rem; transition: transform 0.2s; cursor: pointer; }
+      .btn-play:active { transform: scale(0.95); }
+      .btn-submit { background: #38bdf8; color: #0f172a; border-radius: 12px; font-weight: 600; padding: 12px; border: none; width: 100%; }
+      .btn-submit:disabled { background: #475569; color: #94a3b8; }
+    </style>
+  </head>
+  <body>
+
+    <div id="welcome-popup">
+      <div class="popup-card">
+        <div class="radio-icon">📻</div>
+        <div class="app-title mb-2">RMUTTO RADIO</div>
+        <p class="text-muted small mb-4">ยินดีต้อนรับสู่สถานีวิทยุออนไลน์<br>มหาวิทยาลัยเทคโนโลยีราชมงคลตะวันออก</p>
+        <button class="btn-play" onclick="enterStation()">เข้าสู่วิทยุRMUTTO</button>
+      </div>
+    </div>
+
+    <div id="main-content">
+      <div class="app-header">
+        <div class="app-title">RMUTTO RADIO</div>
+        <div class="app-subtitle">สถานีวิทยุออนไลน์ มหาวิทยาลัยเทคโนโลยีราชมงคลตะวันออก</div>
+      </div>
+
+      <div class="player-card">
+        <div class="album-art-container">
+          <div id="status-screen" class="status-overlay bg-standby" style="display: none;">
+            <div id="status-icon" style="font-size: 2.5rem; margin-bottom: 10px;">📡</div>
+            <h5 id="status-text" class="text-white fw-bold m-0 text-center px-3" style="font-size: 1.1rem;">กำลังรอรับสัญญาณ...</h5>
+          </div>
+          <div id="youtube-player" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;"></div>
+          <div class="click-blocker"></div>
+        </div>
+
+        <div class="song-info">
+          <div id="status-badge" class="song-status-badge badge-warn">กำลังเชื่อมต่อ...</div>
+          <div id="visualizer-container" class="visualizer" style="display: none;">
+            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="request-section" id="request-card">
+        <div class="request-title">🎵 ส่งคำขอเพลงเข้าสถานี</div>
+        <div class="mb-3">
+          <label class="form-label small text-muted">ลิงก์เพลง (YouTube) <span class="text-danger">*</span></label>
+          <input type="text" id="urlInput" class="form-control custom-input" placeholder="วางลิงก์ YouTube ที่นี่..." required>
+        </div>
+        <div class="mb-4">
+          <label class="form-label small text-muted">ชื่อผู้ขอ <span class="text-danger">*</span></label>
+          <input type="text" id="reqNameInput" class="form-control custom-input" placeholder="ระบุชื่อของคุณ (บังคับ)" required>
+        </div>
+        <button type="button" id="submitBtn" class="btn btn-submit" onclick="submitRequest()">ส่งคำขอเพลง</button>
+      </div>
+
+      <div class="text-center mt-4 mb-2">
+        <a href="admin.html" class="text-decoration-none" style="color: #475569; font-size: 0.8rem;">
+          <span style="opacity: 0.5;">🔒 สำหรับเจ้าหน้าที่สถานี</span>
+        </a>
+      </div>
+    </div>
+
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <script>
+      // ==========================================
+      // ใส่ URL เว็บแอป (API) ที่ได้จาก Google Apps Script ที่นี่
+      // ==========================================
+      const API_URL = "https://script.google.com/macros/s/AKfycbybvKDPX8XLOeysiwC8FpNsTG8uGAvGf0iaGaxGMUHQt-YsmzY3GpUt72XkWQeS1_ty/exec"; 
+
+      let player;
+      let isPlayerReady = false;
+      let currentVideoId = "";
+
+      // ฟังก์ชันสำหรับเรียกใช้ API
+      async function fetchAPI(action, params = {}) {
+        let url = API_URL + "?action=" + action;
+        for (let key in params) {
+          url += "&" + encodeURIComponent(key) + "=" + encodeURIComponent(params[key]);
+        }
+        try {
+          let response = await fetch(url);
+          let json = await response.json();
+          if (json.error) throw new Error(json.error);
+          return json.data;
+        } catch (error) {
+          console.error("API Error:", error);
+          throw error;
+        }
+      }
+
+      function onYouTubeIframeAPIReady() {
+        player = new YT.Player('youtube-player', {
+          height: '100%', width: '100%',
+          playerVars: { 'autoplay': 1, 'controls': 0, 'disablekb': 1, 'rel': 0, 'fs': 0, 'playsinline': 1 },
+          events: { 'onReady': function() { isPlayerReady = true; } }
+        });
+      }
+
+      function enterStation() {
+        document.getElementById("welcome-popup").style.display = "none";
+        document.getElementById("main-content").style.display = "flex";
+        if (isPlayerReady) player.playVideo(); 
+        checkNowPlaying(); 
+        setInterval(checkNowPlaying, 5000); 
+      }
+
+      function checkNowPlaying() {
+        fetchAPI('getNowPlaying').then(videoId => {
+          let statusScreen = document.getElementById("status-screen");
+          let statusText = document.getElementById("status-text");
+          let statusIcon = document.getElementById("status-icon");
+          let badge = document.getElementById("status-badge");
+          let visualizer = document.getElementById("visualizer-container");
+          let reqCard = document.getElementById("request-card");
+          let submitBtn = document.getElementById("submitBtn");
+          
+          if (videoId === "OFF_AIR") {
+             if (currentVideoId !== "OFF_AIR") {
+               currentVideoId = "OFF_AIR";
+               statusScreen.style.display = "flex";
+               statusScreen.className = "status-overlay bg-offair";
+               statusIcon.innerText = "🌙";
+               statusText.innerText = "สถานีวิทยุปิดทำการ";
+               badge.className = "song-status-badge badge-off";
+               badge.innerText = "OFF AIR - นอกเวลาออกอากาศ";
+               visualizer.style.display = "none";
+               reqCard.style.opacity = "0.4";
+               submitBtn.disabled = true;
+               if (isPlayerReady) player.stopVideo();
+             }
+          } else if (videoId === "ANNOUNCEMENT") {
+             if (currentVideoId !== "ANNOUNCEMENT") {
+               currentVideoId = "ANNOUNCEMENT";
+               statusScreen.style.display = "flex";
+               statusScreen.className = "status-overlay bg-announce";
+               statusIcon.innerText = "📢";
+               statusText.innerText = "กำลังมีประกาศจากทางสถานี";
+               badge.className = "song-status-badge badge-warn";
+               badge.innerText = "ถ่ายทอดเสียงประกาศ";
+               visualizer.style.display = "flex";
+               reqCard.style.opacity = "1";
+               submitBtn.disabled = false;
+               if (isPlayerReady) player.pauseVideo();
+             }
+          } else if (videoId && videoId !== "") {
+            if (currentVideoId !== videoId) {
+              currentVideoId = videoId;
+              statusScreen.style.display = "none"; 
+              badge.className = "song-status-badge badge-live";
+              badge.innerText = "LIVE - กำลังออกอากาศ";
+              visualizer.style.display = "flex";
+              reqCard.style.opacity = "1";
+              submitBtn.disabled = false;
+              if (isPlayerReady) {
+                player.loadVideoById(videoId); 
+                player.playVideo();
+              }
+            }
+          } else {
+            if (currentVideoId !== "STANDBY") {
+              currentVideoId = "STANDBY";
+              statusScreen.style.display = "flex";
+              statusScreen.className = "status-overlay bg-standby";
+              statusIcon.innerText = "⏳";
+              statusText.innerText = "กำลังจัดเตรียมคิวเพลง...";
+              badge.className = "song-status-badge badge-warn";
+              badge.innerText = "รอการเชื่อมต่อสัญญาณ";
+              visualizer.style.display = "none";
+              reqCard.style.opacity = "1";
+              submitBtn.disabled = false;
+              if (isPlayerReady) player.stopVideo();
+            }
+          }
+        }).catch(err => console.error("Error fetching now playing:", err));
+      }
+
+      function extractVideoID(url) {
+        var regExp = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/;
+        var match = url.match(regExp);
+        return (match && match[1]) ? match[1] : null;
+      }
+
+      function submitRequest() {
+        if (currentVideoId === "OFF_AIR") { alert("❌ ไม่สามารถขอเพลงได้เนื่องจากสถานีปิดทำการ"); return; }
+        var url = document.getElementById("urlInput").value.trim();
+        var name = document.getElementById("reqNameInput").value.trim();
+        var videoId = extractVideoID(url);
+
+        if (!url) { alert("❌ กรุณาวางลิงก์ YouTube ที่ต้องการขอ"); return; }
+        if (!videoId) { alert("❌ ลิงก์ YouTube ไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง"); return; }
+        if (!name) { alert("❌ กรุณาระบุชื่อผู้ขอก่อนส่งคำขอเพลงครับ"); return; }
+        
+        let btn = document.getElementById("submitBtn");
+        btn.innerText = "⏳ กำลังส่งเข้าคิว...";
+        btn.disabled = true;
+        
+        fetchAPI('addSongToQueue', { videoId: videoId, requester: name })
+          .then(response => {
+            if (response === "Success") {
+              alert("✅ ส่งเพลงเข้าคิวเรียบร้อย!");
+              document.getElementById("urlInput").value = "";
+            } else {
+              alert("⚠️ ข้อผิดพลาด: " + response);
+            }
+            btn.innerText = "ส่งคำขอเพลง";
+            btn.disabled = false;
+          })
+          .catch(err => {
+            alert("❌ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้");
+            btn.innerText = "ส่งคำขอเพลง";
+            btn.disabled = false;
+          });
+      }
+    </script>
+  </body>
+</html>

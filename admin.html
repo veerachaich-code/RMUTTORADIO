@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RMUTTO Admin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+      body { font-family: 'Prompt', sans-serif; background-color: #f0f4f8; padding-bottom: 50px; }
+      .bg-brand { background: linear-gradient(135deg, #00a8b5, #007c8a); color: white; }
+      .card { border-radius: 20px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+      .login-container { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #e0f2f1, #00a8b5); }
+      .login-card { max-width: 400px; width: 100%; padding: 40px 30px; border-radius: 24px; }
+      .pin-input { font-size: 1.8rem; letter-spacing: 5px; border-radius: 15px; border: 2px solid #e0e0e0; text-align: center; text-transform: uppercase; }
+      .btn-brand { background: linear-gradient(135deg, #00a8b5, #007c8a); color: white; border-radius: 12px; font-weight: 500; }
+      .countdown-box { background: linear-gradient(135deg, #fff8e1, #fff3cd); border-left: 6px solid #ffc107; border-radius: 12px; }
+      .announcement-box { background: #e3f2fd; border: 2px dashed #2196f3; border-radius: 15px; }
+      .onair-box { background: #fce4ec; border: 2px solid #f06292; border-radius: 15px; }
+      .queue-list-item { border-left: 4px solid #00a8b5; border-radius: 8px !important; margin-bottom: 8px; background-color: white; }
+      .file-queue-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid #eee; font-size: 0.9rem; }
+      .file-queue-item:last-child { border-bottom: none; }
+      .playing-file { background-color: #e8f5e9; font-weight: bold; color: #2e7d32; border-left: 4px solid #4caf50; }
+    </style>
+  </head>
+  <body>
+    <div id="login-screen" class="login-container">
+      <div class="card login-card text-center shadow-lg">
+        <h2 style="color: #007c8a; font-weight: 600;">🎙️ Station Admin</h2>
+        <p class="text-muted">กรุณาใส่รหัสผ่านเจ้าหน้าที่ (RMUTTOPR)</p>
+        <input type="password" id="pinInput" class="form-control pin-input mb-4 mt-3" placeholder="****">
+        <button id="loginBtn" class="btn btn-brand btn-lg w-100" onclick="checkPin()">เข้าสู่ระบบ</button>
+      </div>
+    </div>
+
+    <div id="admin-dashboard" style="display: none;">
+      <nav class="navbar navbar-dark bg-brand mb-4 shadow-sm">
+        <div class="container-fluid py-2">
+          <span class="navbar-brand mb-0 h4 fw-bold">🎙️ Station Admin Dashboard</span>
+          <span class="text-white opacity-75">สถานะ: ออนไลน์ (เชื่อมต่อผ่าน GitHub)</span>
+        </div>
+      </nav>
+      <div class="container" style="max-width: 1200px;">
+        <div class="row g-4">
+          
+          <div class="col-lg-7">
+            <div class="card p-4 mb-4 onair-box shadow-sm">
+              <h5 class="fw-bold text-danger mb-3">📡 ควบคุมการออกอากาศ (Manual Status)</h5>
+              <div class="row g-3 align-items-end">
+                <div class="col-md-8">
+                  <label class="form-label small fw-bold">สถานะสถานีปัจจุบัน</label>
+                  <select id="onAirMode" class="form-select fs-5">
+                    <option value="ON">🟢 เปิดสถานี (Manual ON)</option>
+                    <option value="OFF">🔴 ปิดสถานี (Manual OFF)</option>
+                  </select>
+                </div>
+                <div class="col-md-4">
+                  <button id="saveBtn" class="btn btn-danger w-100 fw-bold py-2" onclick="saveSettings()">💾 บันทึกการตั้งค่า</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="card p-4 mb-4 shadow-sm">
+              <h5 class="fw-bold text-secondary mb-3">▶️ Now Playing</h5>
+              <div id="offAirOverlay" class="bg-dark text-white d-flex align-items-center justify-content-center flex-column" style="display:none !important; position:absolute; top:0; left:0; width:100%; height:100%; z-index:10; border-radius:15px; opacity:0.9;">
+                <h2 class="fw-bold text-danger">🔴 OFF AIR</h2>
+                <p>สถานีถูกสั่งปิดทำการชั่วคราว</p>
+              </div>
+              <div style="position:relative; width: 100%; height: 350px;">
+                <div id="youtube-player" style="width: 100%; height: 100%; background-color: #111; border-radius: 15px;"></div>
+              </div>
+              <div class="mt-4 text-center">
+                <h1 id="clock-display" class="fw-bold" style="font-size: 3.5rem; color: #333; letter-spacing: 2px;">00:00:00</h1>
+              </div>
+              <div class="p-3 mt-3 countdown-box text-center shadow-sm">
+                <h6 class="mb-2 fw-bold text-dark">ระบบแทรกเพลงชาติอัตโนมัติ (07:59 น.)</h6>
+                <span id="anthem-countdown" class="fs-5 text-danger fw-bold">กำลังคำนวณเวลา...</span>
+              </div>
+              <div class="d-flex gap-3 mt-4">
+                <button class="btn btn-success flex-grow-1 py-2 fw-bold" onclick="playNext()">⏭️ ข้ามไปคิวถัดไป</button>
+                <button class="btn btn-warning flex-grow-1 py-2 fw-bold" onclick="forceAnthem()">🇹🇭 ทดสอบแทรกเพลงชาติ</button>
+              </div>
+            </div>
+
+            <div class="card p-4 announcement-box mb-4 shadow-sm">
+              <h5 class="fw-bold text-primary mb-3">📢 ระบบประกาศ (Live Mic & อัปโหลด)</h5>
+              <div class="mb-4 p-3 bg-white rounded shadow-sm border">
+                <h6 class="fw-bold text-dark">🎙️ พูดสดผ่านไมโครโฟน</h6>
+                <p class="text-muted small mb-3">ระบบจะหยุดเพลงอัตโนมัติเมื่อเปิดไมค์ <br><span class="text-danger">*ไมค์จะทำงานสมบูรณ์ 100% เพราะรันบน GitHub</span></p>
+                <button id="micBtn" class="btn btn-info w-100 fw-bold text-white py-2" onclick="toggleMic()">🎙️ เปิดไมค์ประกาศสด</button>
+              </div>
+              <div class="p-3 bg-white rounded shadow-sm border">
+                <h6 class="fw-bold text-dark">📁 อัปโหลดไฟล์เสียง (รันคิวต่อเนื่อง)</h6>
+                <input class="form-control mb-2" type="file" id="audioFile" accept="audio/*" multiple onchange="addFilesToQueue(event)">
+                <div class="border rounded mb-3" style="max-height: 150px; overflow-y: auto;">
+                  <div id="announce-file-list" class="text-muted small p-2 text-center">ยังไม่มีไฟล์ในคิว</div>
+                </div>
+                <audio id="announcementPlayer" controls style="width: 100%; display: none;" class="mb-3"></audio>
+                <div class="d-flex gap-2">
+                  <button id="playAnnounceBtn" class="btn btn-primary flex-grow-1 fw-bold" onclick="startAnnouncementQueue()" disabled>▶️ เริ่มเล่นคิวเสียง</button>
+                  <button class="btn btn-secondary fw-bold px-4" onclick="clearAnnouncementQueue()">🗑️ ล้างคิว</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-lg-5">
+            <div class="card p-4 h-100 shadow-sm">
+              <h5 class="fw-bold text-secondary mb-3">📋 คิวเพลงที่รอเล่น</h5>
+              <ul id="queue-list" class="list-group list-group-flush mt-2" style="max-height: 850px; overflow-y: auto;">
+                <li class="list-group-item text-center text-muted border-0 mt-5">กำลังโหลดคิวข้อมูล...</li>
+              </ul>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <script>
+      // ==========================================
+      // ใส่ URL เว็บแอป (API) ที่ได้จาก Google Apps Script ที่นี่
+      // ==========================================
+      const API_URL = "https://script.google.com/macros/s/AKfycbybvKDPX8XLOeysiwC8FpNsTG8uGAvGf0iaGaxGMUHQt-YsmzY3GpUt72XkWQeS1_ty/exec"; 
+
+      let player, isPlayerReady = false, isPlaying = false;
+      let currentPlayingRow = null, currentPlayingVideoId = ""; 
+      let interruptedVideoId = "", interruptedTime = 0, interruptedRow = null, isAnthemPlaying = false;
+      let isAnnouncementPlaying = false, audioFilePlayer = document.getElementById("announcementPlayer");
+      let announceQueue = [], currentAnnounceIndex = 0;
+      let isMicActive = false, micStream = null, micAudioPlayer = new Audio();
+      let systemAllowedOnAir = true, confMode = "ON";
+
+      const ANTHEM_VIDEO_ID = "v86OlB4f2QY"; 
+
+      // ฟังก์ชันสำหรับเรียกใช้ API
+      async function fetchAPI(action, params = {}) {
+        let url = API_URL + "?action=" + action;
+        for (let key in params) {
+          url += "&" + encodeURIComponent(key) + "=" + encodeURIComponent(params[key]);
+        }
+        try {
+          let response = await fetch(url);
+          let json = await response.json();
+          if (json.error) throw new Error(json.error);
+          return json.data;
+        } catch (error) {
+          console.error("API Error:", error);
+          throw error;
+        }
+      }
+
+      function checkPin() {
+        let pin = document.getElementById("pinInput").value.toUpperCase();
+        let btn = document.getElementById("loginBtn");
+        btn.innerText = "กำลังตรวจสอบ...";
+        
+        fetchAPI('verifyPin', { pin: pin }).then(isValid => {
+          if (isValid) {
+            document.getElementById("login-screen").style.display = "none";
+            document.getElementById("admin-dashboard").style.display = "block";
+            loadSettings(); 
+            initPlayer(); 
+          } else {
+            alert("❌ รหัส PIN ไม่ถูกต้อง!");
+            document.getElementById("pinInput").value = "";
+            btn.innerText = "เข้าสู่ระบบ";
+          }
+        }).catch(err => {
+          alert("❌ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้");
+          btn.innerText = "เข้าสู่ระบบ";
+        });
+      }
+
+      function loadSettings() {
+        fetchAPI('getOnAirSettings').then(settings => {
+          confMode = settings.mode;
+          document.getElementById("onAirMode").value = confMode;
+        }).catch(err => console.error(err));
+      }
+
+      function saveSettings() {
+        confMode = document.getElementById("onAirMode").value;
+        document.getElementById("saveBtn").innerText = "กำลังบันทึก...";
+        
+        fetchAPI('saveOnAirSettings', { mode: confMode }).then(() => {
+          alert("✅ บันทึกการตั้งค่า On Air เรียบร้อย");
+          document.getElementById("saveBtn").innerText = "💾 บันทึกการตั้งค่า";
+          checkOnAirLogic(); 
+        }).catch(err => console.error(err));
+      }
+
+      function checkOnAirLogic() {
+        let isAllowed = (confMode === "ON");
+        let overlay = document.getElementById("offAirOverlay");
+        
+        if (isAllowed && !systemAllowedOnAir) {
+           systemAllowedOnAir = true;
+           overlay.style.setProperty("display", "none", "important");
+           checkQueue(); 
+        } 
+        else if (!isAllowed && systemAllowedOnAir) {
+           systemAllowedOnAir = false;
+           overlay.style.setProperty("display", "flex", "important");
+           if(isPlayerReady) player.stopVideo();
+           if(isAnnouncementPlaying) stopAnnouncement();
+           if(isMicActive) toggleMic();
+           fetchAPI('updateNowPlaying', { videoId: "OFF_AIR" });
+        }
+        else if (!isAllowed) {
+           fetchAPI('updateNowPlaying', { videoId: "OFF_AIR" });
+        }
+      }
+
+      function initPlayer() {
+        var tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        var firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        setInterval(updateClock, 1000);
+        setInterval(checkQueue, 5000);
+      }
+
+      function onYouTubeIframeAPIReady() {
+        player = new YT.Player('youtube-player', {
+          height: '100%', width: '100%',
+          playerVars: { 'autoplay': 1, 'controls': 1 },
+          events: {
+            'onReady': function() { isPlayerReady = true; checkOnAirLogic(); },
+            'onStateChange': onPlayerStateChange
+          }
+        });
+      }
+
+      function onPlayerStateChange(event) {
+        if (event.data == YT.PlayerState.PLAYING) isPlaying = true;
+        if (event.data == YT.PlayerState.ENDED) {
+          isPlaying = false;
+          
+          if (isAnthemPlaying) {
+            isAnthemPlaying = false;
+            if (interruptedVideoId !== "") {
+              currentPlayingRow = interruptedRow;
+              currentPlayingVideoId = interruptedVideoId;
+              player.loadVideoById({ videoId: interruptedVideoId, startSeconds: interruptedTime });
+              fetchAPI('updateNowPlaying', { videoId: interruptedVideoId });
+              interruptedVideoId = ""; interruptedTime = 0; interruptedRow = null;
+              return; 
+            }
+          } else if (currentPlayingRow) {
+            fetchAPI('markAsPlayed', { row: currentPlayingRow });
+            currentPlayingRow = null; currentPlayingVideoId = "";
+          }
+
+          if(systemAllowedOnAir) fetchAPI('updateNowPlaying', { videoId: "" });
+          playNext();
+        }
+      }
+
+      function playNext() {
+        if (!systemAllowedOnAir) return;
+        if (currentPlayingRow && !isAnthemPlaying) {
+          fetchAPI('markAsPlayed', { row: currentPlayingRow });
+          currentPlayingRow = null; currentPlayingVideoId = "";
+        }
+        isPlaying = false;
+        checkQueue(); 
+      }
+
+      function checkQueue() {
+        if (!systemAllowedOnAir || isAnthemPlaying || isAnnouncementPlaying || isMicActive) return; 
+        
+        fetchAPI('getPendingSongs').then(pendingSongs => {
+          let listHtml = "";
+          if (pendingSongs.length === 0) {
+            listHtml = "<li class='list-group-item text-center text-muted border-0 mt-4'>ไม่มีคิวเพลงที่รอเล่น</li>";
+            if (!isPlaying && systemAllowedOnAir) fetchAPI('updateNowPlaying', { videoId: "" });
+          } else {
+            pendingSongs.forEach(song => {
+              listHtml += `<li class='list-group-item queue-list-item'>
+                             <div class="fw-bold text-dark">🎵 ลำดับคิว</div>
+                             <small class="text-muted">ผู้ขอ: ${song.requester}</small>
+                           </li>`;
+            });
+          }
+          document.getElementById('queue-list').innerHTML = listHtml;
+
+          if (isPlayerReady && !isPlaying && pendingSongs.length > 0) {
+            let nextSong = pendingSongs[0];
+            currentPlayingRow = nextSong.row;
+            currentPlayingVideoId = nextSong.videoId;
+            player.loadVideoById(nextSong.videoId);
+            fetchAPI('updateNowPlaying', { videoId: nextSong.videoId });
+          }
+        }).catch(err => console.error(err));
+      }
+
+      function forceAnthem() {
+        if (!systemAllowedOnAir) { alert("กรุณาเปิด On Air ก่อนทดสอบ"); return; }
+        if (isAnthemPlaying) return; 
+
+        if (isPlaying && currentPlayingVideoId !== "" && !isAnnouncementPlaying && !isMicActive) {
+          interruptedVideoId = currentPlayingVideoId;
+          interruptedTime = player.getCurrentTime(); 
+          interruptedRow = currentPlayingRow;
+        }
+
+        isAnthemPlaying = true; isPlaying = true;
+        if(isMicActive) toggleMic(); 
+        if(isAnnouncementPlaying) audioFilePlayer.pause();
+        
+        player.loadVideoById(ANTHEM_VIDEO_ID);
+        fetchAPI('updateNowPlaying', { videoId: ANTHEM_VIDEO_ID });
+      }
+
+      function updateClock() {
+        let now = new Date();
+        let hours = now.getHours().toString().padStart(2, '0');
+        let minutes = now.getMinutes().toString().padStart(2, '0');
+        let seconds = now.getSeconds().toString().padStart(2, '0');
+        document.getElementById('clock-display').innerText = `${hours}:${minutes}:${seconds}`;
+
+        if (hours === "07" && minutes === "59" && seconds === "00" && systemAllowedOnAir) forceAnthem();
+
+        let target = new Date();
+        target.setHours(7, 59, 0, 0);
+        if (now > target) target.setDate(target.getDate() + 1);
+        let diff = target - now;
+        let h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        let m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        let s = Math.floor((diff % (1000 * 60)) / 1000);
+
+        if (isAnthemPlaying) {
+          document.getElementById('anthem-countdown').innerText = "🇹🇭 กำลังเล่นเพลงชาติ 🇹🇭";
+          document.getElementById('anthem-countdown').className = "fs-5 text-success fw-bold";
+        } else {
+          document.getElementById('anthem-countdown').innerText = `รออีก ${h} ชม. ${m} นาที ${s} วิ.`;
+          document.getElementById('anthem-countdown').className = "fs-5 text-danger fw-bold";
+        }
+      }
+
+      async function toggleMic() {
+        if (!systemAllowedOnAir) { alert("กรุณาเปิดระบบ On Air ก่อนใช้งานไมโครโฟน"); return; }
+        let micBtn = document.getElementById('micBtn');
+
+        if (!isMicActive) {
+          try {
+            micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            micAudioPlayer.srcObject = micStream;
+            micAudioPlayer.play(); 
+            isMicActive = true;
+            micBtn.className = "btn btn-danger w-100 fw-bold text-white py-2";
+            micBtn.innerHTML = "🔴 กำลังออกอากาศไมค์สด (คลิกเพื่อปิด)";
+            
+            if (isPlayerReady) player.pauseVideo();
+            if (isAnnouncementPlaying) audioFilePlayer.pause();
+            fetchAPI('updateNowPlaying', { videoId: "ANNOUNCEMENT" });
+            
+          } catch (err) { 
+            alert("❌ ไม่สามารถเข้าถึงไมโครโฟนได้: " + err.message); 
+          }
+        } else {
+          micStream.getTracks().forEach(track => track.stop());
+          micAudioPlayer.srcObject = null;
+          isMicActive = false;
+          micBtn.className = "btn btn-info w-100 fw-bold text-white py-2";
+          micBtn.innerHTML = "🎙️ เปิดไมค์ประกาศสด";
+
+          if (isAnnouncementPlaying) {
+            audioFilePlayer.play();
+          } else if (isPlayerReady && !isAnthemPlaying) {
+            player.playVideo();
+            if(currentPlayingRow) fetchAPI('updateNowPlaying', { videoId: currentPlayingVideoId });
+          } else {
+             fetchAPI('updateNowPlaying', { videoId: "" });
+          }
+        }
+      }
+
+      function addFilesToQueue(event) {
+        let files = event.target.files;
+        for(let i=0; i<files.length; i++) { announceQueue.push(files[i]); }
+        updateQueueUI();
+      }
+
+      function updateQueueUI() {
+        let listContainer = document.getElementById("announce-file-list");
+        let playBtn = document.getElementById("playAnnounceBtn");
+        if (announceQueue.length === 0) {
+          listContainer.innerHTML = '<div class="text-muted small p-2 text-center">ยังไม่มีไฟล์ในคิว</div>';
+          playBtn.disabled = true; return;
+        }
+        playBtn.disabled = false;
+        let html = "";
+        announceQueue.forEach((file, index) => {
+          let isPlayingClass = (isAnnouncementPlaying && index === currentAnnounceIndex) ? "playing-file" : "";
+          let icon = (isAnnouncementPlaying && index === currentAnnounceIndex) ? "🔊" : "🎵";
+          html += `<div class="file-queue-item ${isPlayingClass}"><span>${icon} ${file.name}</span><span class="badge bg-secondary">${index + 1}</span></div>`;
+        });
+        listContainer.innerHTML = html;
+      }
+
+      function startAnnouncementQueue() {
+        if (!systemAllowedOnAir) { alert("กรุณาเปิดระบบ On Air ก่อน"); return; }
+        if (announceQueue.length === 0) return;
+        if (isPlayerReady) player.pauseVideo();
+        isAnnouncementPlaying = true; currentAnnounceIndex = 0;
+        playCurrentAnnouncementFile();
+      }
+
+      function playCurrentAnnouncementFile() {
+        if (currentAnnounceIndex < announceQueue.length) {
+          updateQueueUI();
+          let file = announceQueue[currentAnnounceIndex];
+          audioFilePlayer.src = URL.createObjectURL(file);
+          audioFilePlayer.style.display = "block";
+          audioFilePlayer.play();
+          fetchAPI('updateNowPlaying', { videoId: "ANNOUNCEMENT" });
+        } else {
+          endAnnouncementQueue();
+        }
+      }
+
+      audioFilePlayer.onended = function() {
+        currentAnnounceIndex++; playCurrentAnnouncementFile();
+      };
+
+      function stopAnnouncement() {
+        if(isAnnouncementPlaying) {
+          audioFilePlayer.pause(); audioFilePlayer.currentTime = 0;
+          endAnnouncementQueue();
+        }
+      }
+
+      function endAnnouncementQueue() {
+        isAnnouncementPlaying = false; audioFilePlayer.style.display = "none";
+        if (isPlayerReady && !isAnthemPlaying && !isMicActive && systemAllowedOnAir) {
+          player.playVideo();
+          if(currentPlayingRow) fetchAPI('updateNowPlaying', { videoId: currentPlayingVideoId });
+          else fetchAPI('updateNowPlaying', { videoId: "" });
+        }
+        clearAnnouncementQueue();
+      }
+
+      function clearAnnouncementQueue() {
+        announceQueue = []; currentAnnounceIndex = 0;
+        document.getElementById('audioFile').value = ""; 
+        audioFilePlayer.pause(); audioFilePlayer.style.display = "none";
+        isAnnouncementPlaying = false; updateQueueUI();
+      }
+    </script>
+  </body>
+</html>
